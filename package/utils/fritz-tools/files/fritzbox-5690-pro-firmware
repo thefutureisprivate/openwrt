@@ -1,0 +1,93 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+fail() {
+	echo "$*" >&2
+	exit 1
+}
+
+cleanup() {
+	local status="$?"
+
+	trap - EXIT HUP INT TERM
+	if [ "$mounted" = 1 ] && ! umount "$work/root"; then
+		echo "Cannot unmount $work/root; leaving the temporary directory intact" >&2
+		exit 1
+	fi
+	if [ "$mapped" = 1 ] && ! losetup -d "$loop"; then
+		echo "Cannot detach $loop; leaving the temporary directory intact" >&2
+		exit 1
+	fi
+	rm -rf "$work"
+	exit "$status"
+}
+
+copy_firmware() {
+	local source="$work/root/$1"
+	local target="$work/firmware/$2"
+
+	[ -f "$source" ] && [ ! -L "$source" ] || fail "Missing firmware: $1"
+	mkdir -p "${target%/*}" && cp "$source" "$target" && chmod 0644 "$target" ||
+		fail "Cannot stage firmware: $1"
+}
+
+[ "$#" -eq 2 ] || {
+	echo "Usage: $0 FRITZ.Box_5690_Pro-08.25.image output-directory" >&2
+	echo "Import locally supplied firmware before binding the modem and Wi-Fi drivers." >&2
+	echo "Use /lib/firmware as output on the RAM-booted development image." >&2
+	exit 1
+}
+
+image=$(readlink -f "$1") || exit 1
+[ -f "$image" ] || fail "Input must be a regular FRITZ!OS image file"
+output=$(readlink -f "$2") || exit 1
+[ -n "$output" ] && [ "$output" != / ] || fail "Invalid output directory"
+
+# Pin the image whose modem protocol and board data were examined. A different
+# FRITZ!OS release needs its own compatibility check, not just a new checksum.
+checksum=$(sha256sum "$image") || exit 1
+[ "${checksum%% *}" = dd42cbde24331aa5345e93d60a94ecb7462335de2faa4fedf1aa8708c3bad4c9 ] ||
+	fail "Expected the unmodified FRITZ!Box 5690 Pro FRITZ!OS 8.25 image"
+
+umask 022
+work=$(mktemp -d /tmp/fritz-firmware.XXXXXX) || exit 1
+mapped=0
+mounted=0
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+
+# Extract one archive member to stdout, never paths supplied by the archive.
+tar -xOf "$image" ./var/tmp/fit-image > "$work/fit" ||
+	fail "Cannot extract the AVM FIT image"
+mkdir "$work/root" "$work/firmware" || exit 1
+loop=$(losetup -f) || fail "No unused loop device"
+fritz_fit -c alder_HW279_config_2 -L "$loop" "$work/fit" ||
+	fail "Cannot verify or map the stock root filesystem"
+mapped=1
+mount -t squashfs -o ro,nodev,nosuid,noexec "$loop" "$work/root" ||
+	fail "Cannot mount the stock root filesystem read-only"
+mounted=1
+
+copy_firmware lib/modules/dsp_vr12/xcpe_fw_image.bin vrx619/xcpe_fw.bin
+copy_firmware lib/firmware/09AA/aca_fw.bin vrx619/aca_fw.bin
+for prefix in q6_fw m3_fw; do
+	copy_firmware "lib/firmware/IPQ9574/$prefix.mdt" "IPQ9574/$prefix.mdt"
+	for file in "$work/root/lib/firmware/IPQ9574/$prefix".b??; do
+		copy_firmware "lib/firmware/IPQ9574/${file##*/}" "IPQ9574/${file##*/}"
+	done
+done
+copy_firmware lib/firmware/regdb-pine.bin ath11k/IPQ9574/hw1.0/regdb.bin
+copy_firmware lib/firmware/regdb-waikiki.bin ath12k/QCN9274/hw2.0/regdb.bin
+for file in amss.bin m3.bin; do
+	copy_firmware "lib/firmware/qcn9224/$file" "ath12k/QCN9274/hw2.0/$file"
+done
+copy_firmware lib/firmware/IPQ9574/bdwlan_HW279_1.bin \
+	avm/fritzbox-5690-pro/ipq9574.bin
+copy_firmware lib/firmware/qcn9224/bdwlan_HW279_1.b0002 \
+	avm/fritzbox-5690-pro/qcn9224-5ghz.bin
+copy_firmware lib/firmware/qcn9224/bdwlan_HW279_1.b000c \
+	avm/fritzbox-5690-pro/qcn9224-6ghz.bin
+
+mkdir -p "$output" && cp -R "$work/firmware/." "$output/" ||
+	fail "Cannot install firmware into $output"
+echo "Firmware imported into $output; factory Wi-Fi calibration is still required."

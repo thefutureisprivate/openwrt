@@ -3,7 +3,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fritz-tools
-PKG_RELEASE:=7
+PKG_RELEASE:=8
 PKG_LICENSE:=GPL-2.0-only GPL-2.0-or-later
 PKG_CONFIG_DEPENDS:=CONFIG_PACKAGE_fritz-fit
 CMAKE_INSTALL:=1
@@ -45,6 +45,17 @@ define Package/fritz-fit
   DEPENDS:=+libfdt +zlib +kmod-loop
 endef
 
+define Package/fritzbox-5690-pro-firmware
+  $(call Package/fritz-tools/Default)
+  TITLE:=FRITZ!Box 5690 Pro firmware importer
+  DEPENDS:=@TARGET_qualcommbe @BROKEN +fritz-fit +fritz-caldata +kmod-fs-squashfs +losetup
+endef
+
+define Package/fritzbox-5690-pro-firmware/description
+  Extract modem and Wi-Fi firmware from a user-supplied FRITZ!OS 8.25 image.
+  No vendor firmware is downloaded or included in this package.
+endef
+
 define Package/fritz-caldata
   $(call Package/fritz-tools/Default)
   DEPENDS:=+zlib
@@ -81,6 +92,11 @@ define Package/fritz-fit/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fritz_fit $(1)/usr/bin/
 endef
 
+define Package/fritzbox-5690-pro-firmware/install
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/fritzbox-5690-pro-firmware $(1)/usr/sbin/
+endef
+
 CMAKE_OPTIONS += \
 	-DBUILD_FRITZ_FIT=$(if $(CONFIG_PACKAGE_fritz-fit),ON,OFF)
 
@@ -88,4 +104,5 @@ $(eval $(call BuildPackage,fritz-tffs))
 $(eval $(call BuildPackage,fritz-tffs-nand))
 $(eval $(call BuildPackage,fritz-tffs3))
 $(eval $(call BuildPackage,fritz-fit))
+$(eval $(call BuildPackage,fritzbox-5690-pro-firmware))
 $(eval $(call BuildPackage,fritz-caldata))
