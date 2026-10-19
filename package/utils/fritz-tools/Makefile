@@ -3,8 +3,9 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fritz-tools
-PKG_RELEASE:=6
+PKG_RELEASE:=7
 PKG_LICENSE:=GPL-2.0-only GPL-2.0-or-later
+PKG_CONFIG_DEPENDS:=CONFIG_PACKAGE_fritz-fit
 CMAKE_INSTALL:=1
 
 include $(INCLUDE_DIR)/package.mk
@@ -38,6 +39,12 @@ define Package/fritz-tffs3
   TITLE:=Read-only utility for TFFS 3.1 block storage
 endef
 
+define Package/fritz-fit
+  $(call Package/fritz-tools/Default)
+  TITLE:=AVM FIT inspection and read-only rootfs mapping
+  DEPENDS:=+libfdt +zlib +kmod-loop
+endef
+
 define Package/fritz-caldata
   $(call Package/fritz-tools/Default)
   DEPENDS:=+zlib
@@ -69,7 +76,16 @@ define Package/fritz-tffs3/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fritz_tffs3 $(1)/usr/bin/
 endef
 
+define Package/fritz-fit/install
+	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fritz_fit $(1)/usr/bin/
+endef
+
+CMAKE_OPTIONS += \
+	-DBUILD_FRITZ_FIT=$(if $(CONFIG_PACKAGE_fritz-fit),ON,OFF)
+
 $(eval $(call BuildPackage,fritz-tffs))
 $(eval $(call BuildPackage,fritz-tffs-nand))
 $(eval $(call BuildPackage,fritz-tffs3))
+$(eval $(call BuildPackage,fritz-fit))
 $(eval $(call BuildPackage,fritz-caldata))
