@@ -3,7 +3,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fritz-tools
-PKG_RELEASE:=8
+PKG_RELEASE:=9
 PKG_LICENSE:=GPL-2.0-only GPL-2.0-or-later
 PKG_CONFIG_DEPENDS:=CONFIG_PACKAGE_fritz-fit
 CMAKE_INSTALL:=1
@@ -43,6 +43,12 @@ define Package/fritz-fit
   $(call Package/fritz-tools/Default)
   TITLE:=AVM FIT inspection and read-only rootfs mapping
   DEPENDS:=+libfdt +zlib +kmod-loop
+endef
+
+define Package/fritzbox-5690-pro-tools
+  $(call Package/fritz-tools/Default)
+  TITLE:=FRITZ!Box 5690 Pro bring-up diagnostics
+  DEPENDS:=+fritz-tffs3 +fritz-fit +ethtool
 endef
 
 define Package/fritzbox-5690-pro-firmware
@@ -92,6 +98,11 @@ define Package/fritz-fit/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fritz_fit $(1)/usr/bin/
 endef
 
+define Package/fritzbox-5690-pro-tools/install
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_BIN) ./files/fritzbox-5690-pro-diag $(1)/usr/sbin/
+endef
+
 define Package/fritzbox-5690-pro-firmware/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) ./files/fritzbox-5690-pro-firmware $(1)/usr/sbin/
@@ -104,5 +115,6 @@ $(eval $(call BuildPackage,fritz-tffs))
 $(eval $(call BuildPackage,fritz-tffs-nand))
 $(eval $(call BuildPackage,fritz-tffs3))
 $(eval $(call BuildPackage,fritz-fit))
+$(eval $(call BuildPackage,fritzbox-5690-pro-tools))
 $(eval $(call BuildPackage,fritzbox-5690-pro-firmware))
 $(eval $(call BuildPackage,fritz-caldata))

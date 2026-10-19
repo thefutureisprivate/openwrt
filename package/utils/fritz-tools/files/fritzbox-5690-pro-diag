@@ -1,0 +1,114 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+usage() {
+	echo "Usage: $0 [-t tffs-device -e erase-size] [-f fit-device]" >&2
+	echo "Print read-only bring-up diagnostics; no configuration or flash writes." >&2
+	exit 1
+}
+
+tffs=
+erase=
+fit=
+while getopts 't:e:f:' option; do
+	case "$option" in
+		t) tffs="$OPTARG";;
+		e) erase="$OPTARG";;
+		f) fit="$OPTARG";;
+		*) usage;;
+	esac
+done
+shift $((OPTIND - 1))
+[ "$#" -eq 0 ] || usage
+[ -z "$tffs" ] && [ -n "$erase" ] && usage
+[ -n "$tffs" ] && [ -z "$erase" ] && usage
+
+run() {
+	printf '\n--- %s ---\n' "$*"
+	timeout 20 "$@" 2>&1
+	local status="$?"
+	[ "$status" -eq 0 ] || printf 'exit status: %s\n' "$status"
+}
+
+show() {
+	local path
+	for path in "$@"; do
+		[ -f "$path" ] || continue
+		printf '\n%s: ' "$path"
+		cat "$path"
+		printf '\n'
+	done
+}
+
+printf 'FRITZ!Box 5690 Pro bring-up diagnostics\n'
+run uname -a
+show /etc/openwrt_release /tmp/sysinfo/board_name /proc/cmdline /proc/mtd \
+	/proc/partitions /proc/mounts /proc/interrupts /proc/modules
+
+printf '\n--- Device tree ---\n'
+for path in /sys/firmware/devicetree/base/model \
+	/sys/firmware/devicetree/base/compatible \
+	/sys/firmware/devicetree/base/chosen/bootargs; do
+	[ -f "$path" ] || continue
+	printf '%s: ' "$path"
+	tr '\000' '\n' < "$path"
+done
+
+printf '\n--- Storage geometry ---\n'
+for path in /sys/class/block/*; do
+	[ -e "$path" ] || continue
+	show "$path/uevent" "$path/start" "$path/size" \
+		"$path/queue/logical_block_size" "$path/queue/physical_block_size"
+done
+for path in /sys/class/mtd/mtd*; do
+	show "$path/name" "$path/type" "$path/size" "$path/erasesize" "$path/writesize"
+done
+run ls -l /dev/disk/by-partlabel
+
+printf '\n--- PCI devices ---\n'
+for path in /sys/bus/pci/devices/*; do
+	[ -e "$path" ] || continue
+	printf '\n%s\n' "$path"
+	show "$path/vendor" "$path/device" "$path/subsystem_vendor" \
+		"$path/subsystem_device" "$path/class" "$path/enable" \
+		"$path/current_link_speed" "$path/current_link_width" \
+		"$path/resource" "$path/irq"
+	[ -L "$path/driver" ] && readlink "$path/driver"
+done
+
+printf '\n--- DSL and network ---\n'
+run ubus call dsl status
+run ip -s -d link show
+for path in /sys/class/net/*; do
+	[ -e "$path" ] || continue
+	iface="${path##*/}"
+	[ "$iface" = lo ] && continue
+	run ethtool -i "$iface"
+	run ethtool -S "$iface"
+done
+run iw phy
+show /proc/net/atm/devices /proc/net/atm/pvc /proc/net/atm/br2684
+
+printf '\n--- Firmware checksums ---\n'
+for path in /lib/firmware/vrx619/*.bin \
+	/lib/firmware/ath11k/IPQ9574/hw1.0/*.bin \
+	/lib/firmware/ath12k/QCN9274/hw2.0/*.bin \
+	/lib/firmware/ath12k/QCN9274/hw2.0/*/*.bin; do
+	[ -f "$path" ] && sha256sum "$path"
+done
+printf '\n--- Temperatures ---\n'
+for path in /sys/class/thermal/thermal_zone*; do
+	show "$path/type" "$path/temp"
+done
+
+if [ -n "$tffs" ]; then
+	run fritz_tffs3 -e "$erase" -l "$tffs"
+	for key in HWRevision HWSubRevision ProductID firmware_info linux_fs_start linux_fs_status; do
+		run fritz_tffs3 -e "$erase" -n "$key" "$tffs"
+	done
+fi
+[ -z "$fit" ] || run fritz_fit "$fit"
+
+run dmesg
+run logread -e 'vrx619|dsl|ath11k|ath12k|remoteproc|firmware|PCIe|pcie|mmc|TFFS|tffs'
+exit 0
