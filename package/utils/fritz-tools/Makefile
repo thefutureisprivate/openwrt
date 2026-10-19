@@ -1,7 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fritz-tools
-PKG_RELEASE:=4
+PKG_RELEASE:=5
+PKG_LICENSE:=GPL-2.0-only GPL-2.0-or-later
 CMAKE_INSTALL:=1
 
 include $(INCLUDE_DIR)/package.mk
@@ -30,6 +33,11 @@ define Package/fritz-tffs-nand/description
  Utility to partially read the TFFS filesystems on NAND flash.
 endef
 
+define Package/fritz-tffs3
+  $(call Package/fritz-tools/Default)
+  TITLE:=Read-only utility for TFFS 3.1 block storage
+endef
+
 define Package/fritz-caldata
   $(call Package/fritz-tools/Default)
   DEPENDS:=+zlib
@@ -55,6 +63,12 @@ define Package/fritz-caldata/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fritz_cal_extract $(1)/usr/bin/
 endef
 
+define Package/fritz-tffs3/install
+	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fritz_tffs3 $(1)/usr/bin/
+endef
+
 $(eval $(call BuildPackage,fritz-tffs))
 $(eval $(call BuildPackage,fritz-tffs-nand))
+$(eval $(call BuildPackage,fritz-tffs3))
 $(eval $(call BuildPackage,fritz-caldata))

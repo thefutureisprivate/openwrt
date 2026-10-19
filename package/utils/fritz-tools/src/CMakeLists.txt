@@ -10,7 +10,8 @@ INCLUDE_DIRECTORIES(${zlib_include_dir})
 
 ADD_EXECUTABLE(fritz_tffs_read fritz_tffs_read.c)
 ADD_EXECUTABLE(fritz_tffs_nand_read fritz_tffs_nand_read.c)
+ADD_EXECUTABLE(fritz_tffs3 fritz_tffs3.c)
 ADD_EXECUTABLE(fritz_cal_extract fritz_cal_extract.c)
 TARGET_LINK_LIBRARIES(fritz_cal_extract z)
 
-INSTALL(TARGETS fritz_tffs_read fritz_tffs_nand_read fritz_cal_extract RUNTIME DESTINATION bin)
+INSTALL(TARGETS fritz_tffs_read fritz_tffs_nand_read fritz_tffs3 fritz_cal_extract RUNTIME DESTINATION bin)
