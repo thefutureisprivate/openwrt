@@ -32,6 +32,20 @@ define KernelPackage/vrx619_pmi/description
   Hardware validation is pending.
 endef
 
+define KernelPackage/vrx619_dp
+  SUBMENU:=Network Devices
+  TITLE:=VRX619 PTM and ATM packet transport
+  DEPENDS:=+kmod-vrx619_pmi +kmod-atm @BROKEN
+  FILES:=$(PKG_BUILD_DIR)/vrx619_dp.ko
+  AUTOLOAD:=$(call AutoProbe,vrx619_dp)
+endef
+
+define KernelPackage/vrx619_dp/description
+  ACA firmware loading with PTM Ethernet and ATM AAL5 packet interfaces
+  for the VRX619 DSL endpoint. Requires vrx619/aca_fw.bin and a separately
+  configured DSL line. Hardware validation is pending.
+endef
+
 define KernelPackage/vrx619_ep/description
   PCIe resource management for the VRX619 DSL endpoint. Modem control
   and packet transport require separate drivers. Hardware validation
@@ -49,3 +63,4 @@ endef
 
 $(eval $(call KernelPackage,vrx619_ep))
 $(eval $(call KernelPackage,vrx619_pmi))
+$(eval $(call KernelPackage,vrx619_dp))
