@@ -17,10 +17,30 @@ define KernelPackage/vrx619_ep
   AUTOLOAD:=$(call AutoProbe,vrx619_ep)
 endef
 
+define KernelPackage/vrx619_pmi
+  SUBMENU:=Network Devices
+  TITLE:=VRX619 firmware and mailbox support
+  DEPENDS:=+kmod-vrx619_ep @BROKEN
+  KCONFIG:=CONFIG_FW_LOADER=y CONFIG_CRC32=y
+  FILES:=$(PKG_BUILD_DIR)/vrx619_pmi.ko
+  AUTOLOAD:=$(call AutoProbe,vrx619_pmi)
+endef
+
+define KernelPackage/vrx619_pmi/description
+  Firmware loading, runtime paging and a userspace control interface for
+  the VRX619 DSL endpoint. Requires vrx619/xcpe_fw.bin and a line controller.
+  Hardware validation is pending.
+endef
+
 define KernelPackage/vrx619_ep/description
   PCIe resource management for the VRX619 DSL endpoint. Modem control
   and packet transport require separate drivers. Hardware validation
   is pending.
+endef
+
+define Build/InstallDev
+	$(INSTALL_DIR) $(1)/usr/include/linux
+	$(CP) $(PKG_BUILD_DIR)/include/uapi/linux/vrx619.h $(1)/usr/include/linux/
 endef
 
 define Build/Compile
@@ -28,3 +48,4 @@ define Build/Compile
 endef
 
 $(eval $(call KernelPackage,vrx619_ep))
+$(eval $(call KernelPackage,vrx619_pmi))
