@@ -1,0 +1,38 @@
+From: thefutureisprivate <contact@thefutureisprivate.dev>
+Subject: [PATCH] wifi: ath12k: try per-device board files
+
+The FRITZ!Box 5690 Pro has two QCN9274 radios with separate factory
+calibration records. A shared board.bin cannot hold both patched board
+files. Try a bus- and device-specific name before the API 1 fallback,
+keeping board-2.bin lookup and existing fallback behavior unchanged.
+
+This follows the per-device calibration filename convention already used
+by ath12k. Hardware validation on this board is still pending.
+
+Signed-off-by: thefutureisprivate <contact@thefutureisprivate.dev>
+---
+--- a/drivers/net/wireless/ath/ath12k/core.c
++++ b/drivers/net/wireless/ath/ath12k/core.c
+@@ -521,7 +521,7 @@ int ath12k_core_fetch_board_data_api_1(s
+ int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
+ {
+ 	char boardname[BOARD_NAME_SIZE], fallback_boardname[BOARD_NAME_SIZE];
+-	char *filename, filepath[100];
++	char *filename, filepath[100], per_device[64];
+ 	int bd_api;
+ 	int ret;
+ 
+@@ -556,6 +556,13 @@ int ath12k_core_fetch_bdf(struct ath12k_
+ 		goto success;
+ 
+ 	bd_api = 1;
++	/* Some boards keep a separate, factory-patched BDF for each radio. */
++	snprintf(per_device, sizeof(per_device), "board-%s-%s.bin",
++		 ath12k_bus_str(ab->hif.bus), dev_name(ab->dev));
++	ret = ath12k_core_fetch_board_data_api_1(ab, bd, per_device);
++	if (!ret)
++		goto success;
++
+ 	ret = ath12k_core_fetch_board_data_api_1(ab, bd, ATH12K_DEFAULT_BOARD_FILE);
+ 	if (ret) {
+ 		ath12k_core_create_firmware_path(ab, filename,
