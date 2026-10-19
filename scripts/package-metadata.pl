@@ -235,6 +235,12 @@ sub mconf_depends {
 		}
 
 		if ($condition) {
+			# A conjunction already requires each of its literal terms.
+			# Re-emitting one under that condition creates redundant Kconfig
+			# dependency edges, including cycles through package options.
+			next if $m eq 'depends on' &&
+				$condition =~ /^!?[\w.-]+(?:\s*&&\s*!?[\w.-]+)*$/ &&
+				grep { $_ eq $depend } split /\s*&&\s*/, $condition;
 			if ($m =~ /select/) {
 				next if $depend eq $condition;
 				$depend = "$depend if $condition";
