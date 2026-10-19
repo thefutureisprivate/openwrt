@@ -1,0 +1,33 @@
+From: thefutureisprivate <contact@thefutureisprivate.dev>
+Subject: [PATCH] wifi: ath12k: use the device MAC address
+
+AVM's bootloader writes the factory MAC addresses into the device tree.
+Use a valid device-provided MAC address for each radio when available,
+retaining the existing per-pdev increment and firmware fallback.
+
+Hardware validation on the FRITZ!Box 5690 Pro is still pending.
+
+Signed-off-by: thefutureisprivate <contact@thefutureisprivate.dev>
+---
+--- a/drivers/net/wireless/ath/ath12k/mac.c
++++ b/drivers/net/wireless/ath/ath12k/mac.c
+@@ -14798,6 +14798,7 @@ static int ath12k_mac_hw_register(struct
+ 
+ 	for_each_ar(ah, ar, i) {
+ 		u32 ht_cap_info = 0;
++		u8 address[ETH_ALEN];
+ 
+ 		pdev = ar->pdev;
+ 		if (ar->ab->pdevs_macaddr_valid) {
+@@ -14807,6 +14808,11 @@ static int ath12k_mac_hw_register(struct
+ 			ar->mac_addr[4] += ar->pdev_idx;
+ 		}
+ 
++		if (!device_get_mac_address(ar->ab->dev, address)) {
++			ether_addr_copy(ar->mac_addr, address);
++			ar->mac_addr[4] += ar->pdev_idx;
++		}
++
+ 		ret = ath12k_mac_setup_register(ar, &ht_cap_info, hw->wiphy->bands);
+ 		if (ret)
+ 			goto err_cleanup_unregister;
