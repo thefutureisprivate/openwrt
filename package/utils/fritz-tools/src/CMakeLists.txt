@@ -13,5 +13,7 @@ ADD_EXECUTABLE(fritz_tffs_nand_read fritz_tffs_nand_read.c)
 ADD_EXECUTABLE(fritz_tffs3 fritz_tffs3.c)
 ADD_EXECUTABLE(fritz_cal_extract fritz_cal_extract.c)
 TARGET_LINK_LIBRARIES(fritz_cal_extract z)
+ADD_EXECUTABLE(fritz_caldata fritz_caldata.c)
+TARGET_LINK_LIBRARIES(fritz_caldata z)
 
-INSTALL(TARGETS fritz_tffs_read fritz_tffs_nand_read fritz_tffs3 fritz_cal_extract RUNTIME DESTINATION bin)
+INSTALL(TARGETS fritz_tffs_read fritz_tffs_nand_read fritz_tffs3 fritz_cal_extract fritz_caldata RUNTIME DESTINATION bin)

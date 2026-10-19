@@ -3,7 +3,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fritz-tools
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 PKG_LICENSE:=GPL-2.0-only GPL-2.0-or-later
 CMAKE_INSTALL:=1
 
@@ -61,6 +61,7 @@ endef
 define Package/fritz-caldata/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fritz_cal_extract $(1)/usr/bin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/fritz_caldata $(1)/usr/bin/
 endef
 
 define Package/fritz-tffs3/install
