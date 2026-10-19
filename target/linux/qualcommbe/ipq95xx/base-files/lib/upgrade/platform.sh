@@ -6,6 +6,11 @@ RAMFS_COPY_DATA='/etc/fw_env.config /var/lock/fw_printenv.lock'
 
 platform_check_image() {
 	case "$(board_name)" in
+	avm,fritzbox-5690-pro|\
+	avm,fritzbox-5690-pro-hw0)
+		echo "Persistent installation is not supported on this board yet" >&2
+		return 1
+		;;
 	linksys,ln6001)
 		ln6001_preflight "$1" || {
 			echo "LN6001 A/B preflight failed" >&2
@@ -21,6 +26,10 @@ platform_check_image() {
 
 platform_do_upgrade() {
 	case "$(board_name)" in
+	avm,fritzbox-5690-pro|\
+	avm,fritzbox-5690-pro-hw0)
+		return 1
+		;;
 	8devices,kiwi-dvk)
 		CI_KERNPART="0:HLOS"
 		CI_ROOTPART="rootfs"

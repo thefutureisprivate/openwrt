@@ -1,0 +1,61 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+[ -e "/lib/firmware/$FIRMWARE" ] && exit 0
+
+. /lib/functions.sh
+. /lib/functions/system.sh
+
+case "$(board_name)" in
+avm,fritzbox-5690-pro|avm,fritzbox-5690-pro-hw0) ;;
+*) exit 0 ;;
+esac
+
+case "$FIRMWARE" in
+ath11k/IPQ9574/hw1.0/board.bin|\
+ath11k/IPQ9574/hw1.0/cal-ahb-c000000.wifi.bin)
+	type=0
+	template=ipq9574.bin
+	directory=ath11k/IPQ9574/hw1.0
+	board_file=board.bin
+	cal_file=cal-ahb-c000000.wifi.bin
+	;;
+ath12k/QCN9274/hw2.0/board-pci-0000:01:00.0.bin|\
+ath12k/QCN9274/hw2.0/cal-pci-0000:01:00.0.bin)
+	type=2
+	template=qcn9224-5ghz.bin
+	directory=ath12k/QCN9274/hw2.0
+	board_file=board-pci-0000:01:00.0.bin
+	cal_file=cal-pci-0000:01:00.0.bin
+	;;
+ath12k/QCN9274/hw2.0/board-pci-0002:01:00.0.bin|\
+ath12k/QCN9274/hw2.0/cal-pci-0002:01:00.0.bin)
+	type=19
+	template=qcn9224-6ghz.bin
+	directory=ath12k/QCN9274/hw2.0
+	board_file=board-pci-0002:01:00.0.bin
+	cal_file=cal-pci-0002:01:00.0.bin
+	;;
+*) exit 0 ;;
+esac
+
+chosen=/sys/firmware/devicetree/base/chosen
+[ -s "$chosen/wlan_dect_configs" ] || exit 1
+partition=$(tr -d '\000' 2>/dev/null < "$chosen/wlan_dect_config_part")
+partition=${partition:-urlader}
+# EVA partition names are case-insensitive.
+device=
+for part in /sys/block/mmcblk*/mmcblk*p*; do
+	name=$(sed -n 's/^PARTNAME=//p' "$part/uevent")
+	[ "$(printf '%s' "$name" | tr A-Z a-z)" = \
+	  "$(printf '%s' "$partition" | tr A-Z a-z)" ] || continue
+	[ -z "$device" ] || exit 1
+	device=/dev/${part##*/}
+done
+[ -b "$device" ] || exit 1
+
+mkdir -p "/lib/firmware/$directory" || exit 1
+fritz_caldata "$device" "$chosen/wlan_dect_configs" "$type" 279 \
+	"/lib/firmware/avm/fritzbox-5690-pro/$template" \
+	"/lib/firmware/$directory/$board_file" \
+	"/lib/firmware/$directory/$cal_file"

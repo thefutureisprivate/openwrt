@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
+/dts-v1/;
+
+#include "ipq9574-avm-fritzbox-5690-pro.dtsi"
+
+/ {
+	model = "AVM FRITZ!Box 5690 Pro (HWSubRevision 0)";
+	compatible = "avm,fritzbox-5690-pro-hw0", "avm,fritzbox-5690-pro", "qcom,ipq9574";
+};
+
+&wlan_button {
+	gpios = <&tlmm 47 GPIO_ACTIVE_LOW>;
+};
+
+&keys_pins {
+	pins = "gpio47", "gpio64";
+};
+
+&pcie1 {
+	perst-gpios = <&tlmm 45 GPIO_ACTIVE_LOW>;
+};
+
+&dsl_reset_pins {
+	pins = "gpio45";
+};
+
+&pwm_pins {
+	pins = "gpio46";
+};
+
+&led_dim {
+	pwms = <&pwm 2 1000000 0>;
+};
