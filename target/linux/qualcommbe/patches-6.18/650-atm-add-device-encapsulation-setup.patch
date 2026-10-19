@@ -1,0 +1,78 @@
+From: thefutureisprivate <contact@thefutureisprivate.dev>
+Subject: [PATCH] atm: notify devices of AAL5 encapsulation
+
+The VRX619 SAR firmware needs the encapsulation type before it can
+deliver received AAL5 frames. Add an optional per-device callback when
+br2684 or pppoatm attaches a backend. A per-device callback also avoids
+the global MPOA hook used by older out-of-tree DSL drivers.
+
+Keep existing behavior for devices without the callback. Reject PPPoA
+autodetection for devices using it: their firmware cannot receive the
+first PDU without knowing the encapsulation. The callback runs under
+the ATM socket lock and must not sleep or deliver received packets.
+
+This is a target-local extension pending ATM maintainer review and
+physical ADSL testing; it is not a Linux upstream backport.
+
+Signed-off-by: thefutureisprivate <contact@thefutureisprivate.dev>
+---
+--- a/include/linux/atmdev.h
++++ b/include/linux/atmdev.h
+@@ -176,6 +176,14 @@ struct atm_dev {
+ #define ATM_OF_IMMED  1		/* Attempt immediate delivery */
+ #define ATM_OF_INRATE 2		/* Attempt in-rate delivery */
+ 
++/* Encapsulation used by hardware AAL5 SAR engines. */
++enum atm_mpoa_type {
++	ATM_MPOA_EOA,
++	ATM_MPOA_EOA_FCS,
++	ATM_MPOA_PPP,
++	ATM_MPOA_IP,
++};
++
+ struct atmdev_ops { /* only send is required */
+ 	void (*dev_close)(struct atm_dev *dev);
+ 	int (*open)(struct atm_vcc *vcc);
+@@ -185,6 +193,8 @@ struct atmdev_ops { /* only send is requ
+ 	int (*compat_ioctl)(struct atm_dev *dev,unsigned int cmd,
+ 			    void __user *arg);
+ #endif
++	/* Called after backend attachment; must not sleep or deliver RX. */
++	void (*setup)(struct atm_vcc *vcc, enum atm_mpoa_type type, bool llc);
+ 	int (*pre_send)(struct atm_vcc *vcc, struct sk_buff *skb);
+ 	int (*send)(struct atm_vcc *vcc,struct sk_buff *skb);
+ 	int (*send_bh)(struct atm_vcc *vcc, struct sk_buff *skb);
+--- a/net/atm/br2684.c
++++ b/net/atm/br2684.c
+@@ -599,6 +599,10 @@ static int br2684_regvcc(struct atm_vcc
+ 	atmvcc->pop = br2684_pop;
+ 	atmvcc->release_cb = br2684_release_cb;
+ 	atmvcc->owner = THIS_MODULE;
++	if (atmvcc->dev->ops->setup)
++		atmvcc->dev->ops->setup(atmvcc,
++			brdev->payload == p_routed ? ATM_MPOA_IP : ATM_MPOA_EOA,
++			brvcc->encaps == e_llc);
+ 
+ 	/* initialize netdev carrier state */
+ 	if (atmvcc->dev->signal == ATM_PHY_SIG_LOST)
+--- a/net/atm/pppoatm.c
++++ b/net/atm/pppoatm.c
+@@ -389,6 +389,9 @@ static int pppoatm_assign_vcc(struct atm
+ 	if (be.encaps != PPPOATM_ENCAPS_AUTODETECT &&
+ 	    be.encaps != PPPOATM_ENCAPS_VC && be.encaps != PPPOATM_ENCAPS_LLC)
+ 		return -EINVAL;
++	/* A hardware SAR needs the encapsulation before receiving a PDU. */
++	if (atmvcc->dev->ops->setup && be.encaps == PPPOATM_ENCAPS_AUTODETECT)
++		return -EOPNOTSUPP;
+ 	pvcc = kzalloc(sizeof(*pvcc), GFP_KERNEL);
+ 	if (pvcc == NULL)
+ 		return -ENOMEM;
+@@ -417,6 +420,8 @@ static int pppoatm_assign_vcc(struct atm
+ 	atmvcc->release_cb = pppoatm_release_cb;
+ 	__module_get(THIS_MODULE);
+ 	atmvcc->owner = THIS_MODULE;
++	if (atmvcc->dev->ops->setup)
++		atmvcc->dev->ops->setup(atmvcc, ATM_MPOA_PPP, pvcc->encaps == e_llc);
+ 
+ 	/* re-process everything received between connection setup and
+ 	   backend setup */
