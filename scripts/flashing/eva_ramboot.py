@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor
 from ftplib import FTP, all_errors
 from socket import timeout as SocketTimeout
 from threading import Event
-from os import stat
 
 
 def fit_identity(image, fdtget):
@@ -121,7 +120,13 @@ ram_start = args.ramstart if args.ramstart is not None else 0x80000000
 end_addr = ram_start + ram_size
 
 try:
-	size = stat(args.image).st_size
+	# Validate and upload the same snapshot, even if a concurrent build
+	# replaces or rewrites the source image while preflight is running.
+	image = tempfile.TemporaryFile()
+	with open(args.image, 'rb') as source:
+		shutil.copyfileobj(source, image)
+	size = image.tell()
+	image.seek(0)
 except OSError as err:
 	parser.error(str(err))
 # arbitrary size limit, to prevent the address calculations from overflows etc.
@@ -134,14 +139,13 @@ if args.fit:
 	if (ram_start | ram_size) & 0xffff:
 		parser.error('FIT RAM window must be aligned to 64 KiB')
 	try:
-		with open(args.image, 'rb') as image:
-			header = image.read(80)
-			if len(header) != 80 or header[:4] != b'\x0d\x00\xed\xfe' or header[72:76] != b'\xd0\x0d\xfe\xed':
-				raise ValueError('image does not contain an AVM FIT header')
-			fit_size = struct.unpack_from('<I', header, 4)[0]
-			if fit_size != struct.unpack_from('>I', header, 76)[0] or fit_size < 40 or fit_size + 72 > size:
-				raise ValueError('invalid or truncated FIT image')
-			identity = fit_identity(image, args.fdtget)
+		header = image.read(80)
+		if len(header) != 80 or header[:4] != b'\x0d\x00\xed\xfe' or header[72:76] != b'\xd0\x0d\xfe\xed':
+			raise ValueError('image does not contain an AVM FIT header')
+		fit_size = struct.unpack_from('<I', header, 4)[0]
+		if fit_size != struct.unpack_from('>I', header, 76)[0] or fit_size < 40 or fit_size + 72 > size:
+			raise ValueError('invalid or truncated FIT image')
+		identity = fit_identity(image, args.fdtget)
 	except (OSError, ValueError) as err:
 		parser.error(str(err))
 	for actual, expected in zip(identity, (args.expected_hwrevision, args.expected_hwsubrevision)):
@@ -177,8 +181,10 @@ else:
 store = 'STOR 0x%08x 0x%08x' % (start_addr, end_addr)
 if args.dry_run:
 	print('\n'.join(commands + [store]))
+	image.close()
 	raise SystemExit(0)
 
+image.seek(0)
 ftp = FTP()
 
 def adam(cmd):
@@ -222,8 +228,7 @@ try:
 			if command.startswith('SETENV '):
 				settings_changed = True
 			adam(command)
-		with open(args.image, 'rb') as img:
-			ftp.storbinary(store, img)
+		ftp.storbinary(store, image)
 		uploaded = True
 		if args.fit:
 			ftp.quit()
@@ -239,3 +244,4 @@ except (all_errors + (ValueError, RuntimeError, KeyboardInterrupt)) as err:
 	parser.exit(1, 'EVA RAM boot failed: %s\n' % (err or 'interrupted'))
 finally:
 	ftp.close()
+	image.close()
