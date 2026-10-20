@@ -3,7 +3,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fritz-tools
-PKG_RELEASE:=9
+PKG_RELEASE:=10
 PKG_LICENSE:=GPL-2.0-only GPL-2.0-or-later
 PKG_CONFIG_DEPENDS:=CONFIG_PACKAGE_fritz-fit
 CMAKE_INSTALL:=1
@@ -48,7 +48,7 @@ endef
 define Package/fritzbox-5690-pro-tools
   $(call Package/fritz-tools/Default)
   TITLE:=FRITZ!Box 5690 Pro bring-up diagnostics
-  DEPENDS:=+fritz-tffs3 +fritz-fit +ethtool
+  DEPENDS:=+fritz-tffs3 +fritz-fit +dtc +ethtool
 endef
 
 define Package/fritzbox-5690-pro-firmware

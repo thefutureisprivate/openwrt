@@ -43,7 +43,8 @@ show() {
 printf 'FRITZ!Box 5690 Pro bring-up diagnostics\n'
 run uname -a
 show /etc/openwrt_release /tmp/sysinfo/board_name /proc/cmdline /proc/mtd \
-	/proc/partitions /proc/mounts /proc/interrupts /proc/modules
+	/proc/partitions /proc/mounts /proc/interrupts /proc/modules \
+	/proc/iomem /proc/meminfo
 
 printf '\n--- Device tree ---\n'
 for path in /sys/firmware/devicetree/base/model \
@@ -53,6 +54,8 @@ for path in /sys/firmware/devicetree/base/model \
 	printf '%s: ' "$path"
 	tr '\000' '\n' < "$path"
 done
+# The live tree includes EVA's chosen properties and factory MAC fixups.
+run dtc -I fs -O dts /sys/firmware/devicetree/base
 
 printf '\n--- Storage geometry ---\n'
 for path in /sys/class/block/*; do
@@ -83,6 +86,8 @@ for path in /sys/class/net/*; do
 	[ -e "$path" ] || continue
 	iface="${path##*/}"
 	[ "$iface" = lo ] && continue
+	show "$path/address" "$path/addr_assign_type"
+	[ -L "$path/device/of_node" ] && readlink -f "$path/device/of_node"
 	run ethtool -i "$iface"
 	run ethtool -S "$iface"
 done
