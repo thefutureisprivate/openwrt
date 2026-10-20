@@ -9,7 +9,10 @@ import subprocess
 import sys
 import tempfile
 
+from concurrent.futures import ThreadPoolExecutor
 from ftplib import FTP, all_errors
+from socket import timeout as SocketTimeout
+from threading import Event
 from os import stat
 
 
@@ -38,14 +41,36 @@ def fit_identity(image, fdtget):
 
 
 def read_environment(ftp):
-	environment = bytearray()
+	complete = Event()
 
-	def receive(data):
-		if len(environment) + len(data) > 1024 * 1024:
-			raise ValueError('EVA environment exceeds 1 MiB')
-		environment.extend(data)
+	def receive(connection):
+		environment = bytearray()
+		while True:
+			try:
+				data = connection.recv(8192)
+			except SocketTimeout:
+				if complete.is_set():
+					break
+				continue
+			if not data:
+				break
+			if len(environment) + len(data) > 1024 * 1024:
+				raise ValueError('EVA environment exceeds 1 MiB')
+			environment.extend(data)
+		return environment
 
-	ftp.retrbinary('RETR env', receive)
+	ftp.voidcmd('TYPE I')
+	with ftp.transfercmd('RETR env') as connection, ThreadPoolExecutor(max_workers=1) as reader:
+		# EVA may send 226 without closing the data connection. Read both
+		# channels concurrently, then drain data until idle after the reply.
+		connection.settimeout(1)
+		try:
+			incoming = reader.submit(receive, connection)
+			if ftp.voidresp()[:3] != '226':
+				raise ValueError('EVA did not acknowledge the environment transfer')
+		finally:
+			complete.set()
+		environment = incoming.result()
 	values = {}
 	for line in environment.decode('ascii').splitlines():
 		fields = line.split(None, 1)
