@@ -7,7 +7,8 @@ RAMFS_COPY_DATA='/etc/fw_env.config /var/lock/fw_printenv.lock'
 platform_check_image() {
 	case "$(board_name)" in
 	avm,fritzbox-5690-pro|\
-	avm,fritzbox-5690-pro-hw0)
+	avm,fritzbox-5690-pro-hw0|\
+	avm,fritzbox-5690-pro-hw5)
 		echo "Persistent installation is not supported on this board yet" >&2
 		return 1
 		;;
@@ -27,7 +28,8 @@ platform_check_image() {
 platform_do_upgrade() {
 	case "$(board_name)" in
 	avm,fritzbox-5690-pro|\
-	avm,fritzbox-5690-pro-hw0)
+	avm,fritzbox-5690-pro-hw0|\
+	avm,fritzbox-5690-pro-hw5)
 		return 1
 		;;
 	8devices,kiwi-dvk)

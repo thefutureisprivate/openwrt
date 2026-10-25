@@ -7,7 +7,7 @@
 . /lib/functions/system.sh
 
 case "$(board_name)" in
-avm,fritzbox-5690-pro|avm,fritzbox-5690-pro-hw0) ;;
+avm,fritzbox-5690-pro|avm,fritzbox-5690-pro-hw0|avm,fritzbox-5690-pro-hw5) ;;
 *) exit 0 ;;
 esac
 

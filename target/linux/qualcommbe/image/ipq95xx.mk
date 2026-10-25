@@ -83,6 +83,14 @@ define Device/avm_fritzbox-5690-pro-hw0
 endef
 TARGET_DEVICES += avm_fritzbox-5690-pro-hw0
 
+define Device/avm_fritzbox-5690-pro-hw5
+	$(call Device/avm_fritzbox-5690-pro-common)
+	DEVICE_VARIANT := HWSubRevision 5
+	DEVICE_DTS_CONFIG := alder_HW279_config_5
+	DEVICE_DTS := ipq9574-avm-fritzbox-5690-pro-hw5
+endef
+TARGET_DEVICES += avm_fritzbox-5690-pro-hw5
+
 define Device/linksys_ln6001
 	$(call Device/FitImage)
 	DEVICE_VENDOR := Linksys

@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
+/dts-v1/;
+
+#include "ipq9574-avm-fritzbox-5690-pro.dtsi"
+
+/ {
+	model = "AVM FRITZ!Box 5690 Pro (HWSubRevision 5)";
+	compatible = "avm,fritzbox-5690-pro-hw5", "avm,fritzbox-5690-pro", "qcom,ipq9574";
+
+	memory@40000000 {
+		reg = <0x0 0x40000000 0x0 0x40000000>;
+	};
+};
