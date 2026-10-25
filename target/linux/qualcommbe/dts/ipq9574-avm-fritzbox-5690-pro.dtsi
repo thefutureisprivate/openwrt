@@ -131,13 +131,13 @@
 		led_info_green: led-info-green {
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_INDICATOR;
-			gpios = <&tlmm 63 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 27 GPIO_ACTIVE_HIGH>;
 		};
 
 		led_info_red: led-info-red {
 			color = <LED_COLOR_ID_RED>;
 			function = LED_FUNCTION_INDICATOR;
-			gpios = <&tlmm 27 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 63 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
