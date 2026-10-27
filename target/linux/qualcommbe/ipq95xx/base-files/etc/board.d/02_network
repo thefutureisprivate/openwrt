@@ -34,6 +34,22 @@ ipq95xx_setup_interfaces()
 	esac
 }
 
+ipq95xx_setup_macs()
+{
+	local board="$1"
+	local lan_mac=""
+
+	case "$board" in
+	avm,fritzbox-5690-pro|\
+	avm,fritzbox-5690-pro-hw0|\
+	avm,fritzbox-5690-pro-hw5)
+		lan_mac=$(cat /proc/device-tree/chosen/maca 2>/dev/null)
+		;;
+	esac
+
+	[ -n "$lan_mac" ] && ucidef_set_interface_macaddr "lan" "$lan_mac"
+}
+
 DEV_PATH_PCIE0=soc@0/10000000.pcie/pci0001:00/0001:00:00.0/0001:01:00.0
 DEV_PATH_PCIE1=soc@0/18000000.pcie/pci0003:00/0003:00:00.0/0003:01:00.0
 DEV_PATH_PCIE2=soc@0/20000000.pcie/pci0002:00/0002:00:00.0/0002:01:00.0
@@ -52,6 +68,7 @@ ipq95xx_setup_wlan()
 board_config_update
 board=$(board_name)
 ipq95xx_setup_interfaces $board
+ipq95xx_setup_macs $board
 ipq95xx_setup_wlan $board
 board_config_flush
 
