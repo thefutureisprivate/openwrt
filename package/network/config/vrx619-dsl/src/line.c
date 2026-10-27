@@ -286,7 +286,11 @@ static void retry(struct vrx619_line *line, uint64_t now, int error, bool restar
 {
 	unsigned int shift = line->failures < 4 ? line->failures : 4;
 
-	line->ops->transport(line->ctx, VRX619_TRANSPORT_NONE);
+	/* Stop autonomous firmware retraining before waiting for the next attempt. */
+	if (!restart)
+		restart = request_idle(line) != 0;
+	else
+		line->ops->transport(line->ctx, VRX619_TRANSPORT_NONE);
 	line->transport = VRX619_TRANSPORT_NONE;
 	line->vtse = 0;
 	line->profile = 0;
@@ -451,18 +455,25 @@ recovery:
 		fail(line, ret);
 		return;
 	}
-	if (line->phase == VRX619_TRAINING && ret == -ETIMEDOUT) {
-		int idle_ret = request_idle(line);
-
-		retry(line, now, ret, idle_ret != 0);
-	} else {
+	if (line->phase == VRX619_TRAINING && ret == -ETIMEDOUT)
+		retry(line, now, ret, false);
+	else
 		retry(line, now, ret, true);
-	}
 }
 
 void vrx619_line_event(struct vrx619_line *line, uint16_t command,
 		       const uint8_t *data, size_t size, uint64_t now)
 {
+	/* FAIL can be followed by a new training state between status polls. */
+	if (line->enabled && command == 0x0200 && size >= 6 &&
+	    get_le32(data) == FSM_FAIL &&
+	    (line->phase == VRX619_TRAINING || line->phase == VRX619_SHOWTIME)) {
+		line->state = FSM_FAIL;
+		line->substate = get_le16(data + 4);
+		if (line->phase == VRX619_SHOWTIME)
+			line->retrains++;
+		retry(line, now, -ENOLINK, false);
+	}
 	if (command == 0x0205 && size >= 2) {
 		line->exception = get_le16(data);
 		if (data[1] == 0x37) {
