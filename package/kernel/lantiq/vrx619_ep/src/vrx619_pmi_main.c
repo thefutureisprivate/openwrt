@@ -269,7 +269,8 @@ static int vrx619_mailbox_setup(struct vrx619_pmi *pmi)
 			    !vrx619_mailbox_range(rx, rx_size) ||
 			    min(tx_size, rx_size) < prefix + 12)
 				return -EBADMSG;
-			pmi->page_addr = prefix ? vrx619_pss_to_dev(rx) : 0;
+			/* Paging status prefixes the host-to-device mailbox. */
+			pmi->page_addr = prefix ? vrx619_pss_to_dev(tx) : 0;
 			pmi->tx_addr = vrx619_pss_to_dev(tx) + prefix;
 			pmi->rx_addr = vrx619_pss_to_dev(rx) + prefix;
 			pmi->tx_size = tx_size - prefix - 4;
